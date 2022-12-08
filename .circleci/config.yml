@@ -1,0 +1,71 @@
+version: 2.1
+orbs:
+  go: circleci/go@1.7.1
+workflows:
+  main:
+    jobs:
+      - lint
+      - test:
+          matrix:
+            parameters:
+              goVersion: ["1.18", "1.19"]
+              vimVersion: ["vim-8.0", "vim-8.2", "nvim"]
+      
+jobs:
+  lint:
+    docker:
+      - image: cimg/base
+    steps:
+      - setupPython
+      - run:
+          name: "Install vim-vint"
+          command: |
+            python -m pip install --upgrade pip
+            pip install vim-vint pathlib
+      - checkout
+      - run:
+          name: "Install vim"
+          command: './scripts/install-vim vim-8.2'
+      - run:
+          name: "Install tools"
+          command: "./scripts/install-tools vim-8.2"
+      - run:
+          name: lint
+          command: "./scripts/lint vim-8.2"
+  test:
+    docker:
+      - image: cimg/base
+    parameters:
+      goVersion:
+        type: string
+      vimVersion:
+        type: string
+    steps:
+      - go/install:
+          version: << parameters.goVersion >>
+      - setupPython
+      - run:
+          name: "Install covimerage"
+          command: |
+            python -m pip install --upgrade pip
+            pip install click=7.1.2 covimerage==0.2.1 codecov pathlib
+      - checkout
+      - run:
+          name: "Install vim"
+          command: "./scripts/install-vim << parameters.vimVersion >>"
+      - run:
+          name: "Install tools"
+          command: "./scripts/install-tools << parameters.vimVersion >>"
+      - run:
+          name: "Test"
+          command: "./scripts/test -c << parameters.vimVersion >>"
+
+
+  commands:
+    setupPython:
+      steps:
+        - run:
+            name: "Setup python"
+            command: |
+              apt upgrade -y
+              apt install -y pypy
